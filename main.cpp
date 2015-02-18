@@ -1,75 +1,76 @@
 #include "ecs.h"
 #include <iostream>
 
-struct pos : ecs::Component
+struct pos : ecs::component
+{
+	double x = 0.0, y = 0.0;
+};
+
+struct dir : ecs::component
 {
 	double x, y;
 };
 
-struct dir : ecs::Component
+struct movement2 : ecs::system
 {
-	double x, y;
-};
-
-struct movement : ecs::System
-{
-	movement(ecs::World& w) : ecs::System(w) {}
-
-	virtual ecs::SystemType GetType() const override { return ecs::SystemType::Update; }
-
-	virtual void Update(double deltaTime) override
+	movement2(ecs::world& world) : ecs::system(world) {}
+	void operator()(double delta) const
 	{
-		for (auto& e : m_world.GetEntitiesWith<pos, dir>())
+		for (auto& e : world_.search<pos>())
 		{
-			auto p = m_world.GetComponent<pos>(e);
-			auto d = m_world.GetComponent<dir>(e);
+			auto p = world_.get<pos>(e);
 
-			p->x += d->x * deltaTime;
-			p->y += d->y * deltaTime;
+			p->x += 0.1 * delta;
+			p->y += 0.1 * delta;
 		}
-	};
+	}
+};
+
+struct movement : ecs::system
+{
+	movement(ecs::world& world) : ecs::system(world) {}
+
+	void operator()(double delta) const
+	{
+		for (auto& e : world_.search<pos, dir>())
+		{
+			auto p = world_.get<pos>(e);
+			auto d = world_.get<dir>(e);
+
+			p->x += d->x * delta;
+			p->y += d->y * delta;
+		}
+	}
 };
 
 void main()
 {
-	ecs::World world;
+	ecs::world world;
 
-	// create an empty entity
-	auto e1 = world.CreateEntity();
+	auto e1 = world.createEntity();
+	auto e2 = world.createEntity();
 
-	// add a couple of components to that entity
-	auto p = world.AddComponent<pos>(e1);
-	auto d = world.AddComponent<dir>(e1);
+	auto p1 = world.add<pos>(e1);
+	p1->x = 2.3;
+	p1->y = 0.4;
 
-	// initialize the components
-	p->x = 2.0;
-	p->y = 2.5;
+	auto d1 = world.add<dir>(e1);
+	d1->x = 1.0;
+	d1->y = 1.1;
 
-	d->x = 4.3;
-	d->y = 0.8;
+	auto p2 = world.add<pos>(e2);
+	p2->x = 3.0;
+	p2->y = 4.0;
 
-	// add a new system to the world
-	world.AddSystem<movement>();
-	
-	// update the world
-	world.Update(1.0 / 60.0);
-	std::cout << "pos: " << p->x << ", " << p->y << std::endl;
-	world.Update(1.0 / 60.0);
-	std::cout << "pos: " << p->x << ", " << p->y << std::endl;
-	world.Update(1.0 / 60.0);
-	std::cout << "pos: " << p->x << ", " << p->y << std::endl;
+	world.add<movement>();
+	world.add<movement2>();
 
-	// remove the movement system
-	world.RemoveSystem<movement>();
+	for (unsigned i = 0; i < 1000; ++i)
+	{
+		world(1.0 / 60.0);
+	}
 
-	// update the world - the position of the entity should not change beyond this point
-	world.Update(1.0 / 60.0);
-	std::cout << "pos: " << p->x << ", " << p->y << std::endl;
-	world.Update(1.0 / 60.0);
-	std::cout << "pos: " << p->x << ", " << p->y << std::endl;
-	world.Update(1.0 / 60.0);
-	std::cout << "pos: " << p->x << ", " << p->y << std::endl;
-
-	int a = 5;
-
+	std::cout << "e1 x = " << p1->x << ", " << p1->y << std::endl;
+	std::cout << "e2 x = " << p2->x << ", " << p2->y << std::endl;
+	int a = 3;
 }
